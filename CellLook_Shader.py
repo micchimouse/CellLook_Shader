@@ -254,7 +254,6 @@ def create_celllook_material(mat_name: str, group_name: str = GROUP_NAME_DEFAULT
 # -----------------------
 
 README_LINES = [
-    "Recommended Settings",
     "・Render > Render Engine : EEVEE",
     "・Render > Sampling > Shadows : Check ON / Rays 1 / Steps 1",
     "・Render > Color Management > View : Standard",
@@ -269,7 +268,7 @@ class CellLookProps(bpy.types.PropertyGroup):
         default=DEFAULT_MATERIAL_NAME
     )
     show_readme: BoolProperty(
-        name="Read Me",
+        name="Recommended Settings",
         default=False,
         description="Show/hide recommended settings"
     )
@@ -316,11 +315,11 @@ class CELLLOOK_PT_panel(bpy.types.Panel):
         col.label(text="Material Name")
         col.prop(p, "material_name", text="")  # no label on the input row
 
-        # ---- Read Me (accordion) ----
+        # ---- Recommended Settings (accordion) ----
         box = layout.box()
         row = box.row(align=True)
         icon = 'TRIA_DOWN' if p.show_readme else 'TRIA_RIGHT'
-        row.prop(p, "show_readme", text="Read Me", icon=icon, emboss=False)
+        row.prop(p, "show_readme", text="Recommended Settings", icon=icon, emboss=False)
 
         if p.show_readme:
             col = box.column(align=True)
