@@ -2,7 +2,7 @@ bl_info = {
     "name": "Cell Look Shader",
     "author": "micchimouse",
     "version": (1, 5, 2),
-    "blender": (3, 6, 0),
+    "blender": (4, 0, 0),
     "location": "Shader Editor > Sidebar",
     "description": "One-click creation of Cell Look material (Eevee). Settings are adjusted later in Shader Editor.",
     "category": "Material",
