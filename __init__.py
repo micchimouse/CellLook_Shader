@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Cell Look Shader",
     "author": "micchimouse",
-    "version": (1, 5, 2),
+    "version": (1, 5, 3),
     "blender": (4, 0, 0),
     "location": "Shader Editor > Sidebar",
     "description": "One-click creation of Cell Look material (Eevee). Settings are adjusted later in Shader Editor.",
@@ -250,6 +250,126 @@ def create_celllook_material(mat_name: str, group_name: str = GROUP_NAME_DEFAULT
 
 
 # -----------------------
+# Render Settings Apply (NEW)
+# -----------------------
+
+def _set_if_exists(obj, attr: str, value):
+    if hasattr(obj, attr):
+        try:
+            setattr(obj, attr, value)
+            return True
+        except Exception:
+            return False
+    return False
+
+
+def _enum_contains(render_settings, prop_name: str, identifier: str) -> bool:
+    try:
+        p = render_settings.bl_rna.properties[prop_name]
+        return any(e.identifier == identifier for e in p.enum_items)
+    except Exception:
+        return False
+
+
+class CELLLOOK_OT_apply_recommended_settings(bpy.types.Operator):
+    bl_idname = "celllook.apply_recommended_settings"
+    bl_label = "Apply Recommended Render Settings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        msg = []
+
+        # 1) Render Engine: EEVEE
+        # Blender 4.x+: BLENDER_EEVEE_NEXT, older: BLENDER_EEVEE
+        target = None
+        if _enum_contains(scene.render, "engine", "BLENDER_EEVEE_NEXT"):
+            target = "BLENDER_EEVEE_NEXT"
+        elif _enum_contains(scene.render, "engine", "BLENDER_EEVEE"):
+            target = "BLENDER_EEVEE"
+
+        if target:
+            if scene.render.engine != target:
+                scene.render.engine = target
+                msg.append(f"Render Engine -> {target}")
+            else:
+                msg.append("Render Engine already EEVEE")
+        else:
+            self.report({'WARNING'}, "Could not find an EEVEE engine enum on this Blender version.")
+            # continue anyway
+
+        # 2) Render > Sampling > Shadows: enable + Rays 1 / Steps 1
+        # Property names can differ; do best-effort on scene.eevee
+        ee = getattr(scene, "eevee", None)
+        if ee is None:
+            self.report({'WARNING'}, "scene.eevee settings not found (unexpected).")
+        else:
+            # enable shadows (best-effort)
+            # candidates seen across versions / builds
+            shadow_bool_candidates = [
+                "use_shadows",
+                "use_shadow",
+                "use_shadow_maps",
+                "use_shadow_tracing",
+            ]
+            enabled = False
+            for a in shadow_bool_candidates:
+                if _set_if_exists(ee, a, True):
+                    enabled = True
+                    msg.append(f"Shadows -> ON ({a})")
+                    break
+            if not enabled:
+                msg.append("Shadows -> (property not found, skipped)")
+
+            # Rays / Steps (best-effort)
+            ray_candidates = [
+                "shadow_ray_count",
+                "shadow_rays",
+                "shadow_ray_samples",
+                "shadow_samples",
+            ]
+            step_candidates = [
+                "shadow_step_count",
+                "shadow_steps",
+                "shadow_ray_steps",
+            ]
+
+            rays_set = False
+            for a in ray_candidates:
+                if _set_if_exists(ee, a, 1):
+                    rays_set = True
+                    msg.append(f"Shadows Rays -> 1 ({a})")
+                    break
+            if not rays_set:
+                msg.append("Shadows Rays -> (property not found, skipped)")
+
+            steps_set = False
+            for a in step_candidates:
+                if _set_if_exists(ee, a, 1):
+                    steps_set = True
+                    msg.append(f"Shadows Steps -> 1 ({a})")
+                    break
+            if not steps_set:
+                msg.append("Shadows Steps -> (property not found, skipped)")
+
+        # 3) Color Management > View : Standard
+        # view_settings.view_transform controls View
+        vs = getattr(scene, "view_settings", None)
+        if vs and hasattr(vs, "view_transform"):
+            try:
+                vs.view_transform = "Standard"
+                msg.append("View Transform -> Standard")
+            except Exception:
+                msg.append("View Transform -> (failed to set, skipped)")
+        else:
+            msg.append("View Transform -> (not available, skipped)")
+
+        # Report (short)
+        self.report({'INFO'}, " / ".join(msg[:3]) + (" ..." if len(msg) > 3 else ""))
+        return {'FINISHED'}
+
+
+# -----------------------
 # UI / Operator
 # -----------------------
 
@@ -313,7 +433,7 @@ class CELLLOOK_PT_panel(bpy.types.Panel):
         # ---- Material Name (vertical layout) ----
         col = layout.column(align=True)
         col.label(text="Material Name")
-        col.prop(p, "material_name", text="")  # no label on the input row
+        col.prop(p, "material_name", text="")
 
         # ---- Recommended Settings (accordion) ----
         box = layout.box()
@@ -326,6 +446,11 @@ class CELLLOOK_PT_panel(bpy.types.Panel):
             for line in README_LINES:
                 col.label(text=line)
 
+            col.separator(factor=0.5)
+            r = col.row()
+            r.scale_y = 1.2
+            r.operator("celllook.apply_recommended_settings", icon='CHECKMARK')
+
         layout.separator()
 
         # ---- Bigger create button ----
@@ -336,6 +461,7 @@ class CELLLOOK_PT_panel(bpy.types.Panel):
 
 classes = (
     CellLookProps,
+    CELLLOOK_OT_apply_recommended_settings,
     CELLLOOK_OT_create,
     CELLLOOK_PT_panel
 )
