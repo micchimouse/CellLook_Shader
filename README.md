@@ -1,6 +1,8 @@
 # CellLook_Shader
 ワンクリックでセルルックのシェーダーを生成するアドオンです
 
+[🚀 Download 🚀](https://github.com/micchimouse/CellLook_Shader/releases)
+
 ## インストール方法
 1. Edit（編集）> 環境設定（Preferences）> Add-ons
 2. Add-onsの中に、zipファイルごとドラック＆ドロップ
